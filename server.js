@@ -6,20 +6,23 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-// ✅ Production CORS settings
+// ✅ PRODUCTION CORS SETTINGS - UPDATED
 app.use(cors({
     origin: [
-        'https://yourwordpresssite.com',  // Aapki WordPress site URL yahan daalna
-        'http://yourwordpresssite.com',
-        'https://www.yourwordpresssite.com',
-        'http://localhost:3000',
-        'http://127.0.0.1:3000'
+        "https://turbolearnai.in",        // Your WordPress site
+        "http://turbolearnai.in", 
+        "https://www.turbolearnai.in",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "*"  // Allow all temporarily
     ],
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
-    allowedHeaders: ['Content-Type', 'Authorization']
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With']
 }));
 
+// ✅ Handle preflight OPTIONS requests
+app.options('*', cors());
 // Middleware
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true }));
