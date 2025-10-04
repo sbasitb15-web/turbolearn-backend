@@ -67,22 +67,17 @@ app.get('/health', (req, res) => {
 });
 
 // 404 handler
-app.use('*', (req, res) => {
-    res.status(404).json({
-        success: false,
-        error: 'Endpoint not found',
-        message: 'The requested endpoint does not exist',
-        availableEndpoints: [
-            'GET /',
-            'GET /health',
-            'POST /api/summary',
-            'POST /api/flashcards',
-            'POST /api/quiz',
-            'POST /api/upload',
-            'POST /api/youtube',
-            'POST /api/transcribe'
-        ]
-    });
+// Add CORS headers to all responses
+app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept, Origin, X-Requested-With');
+    
+    if (req.method === 'OPTIONS') {
+        return res.sendStatus(200);
+    }
+    next();
+});
 });
 
 // Error handler
