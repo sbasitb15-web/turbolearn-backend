@@ -6,19 +6,23 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-// ✅ Production CORS settings
+// ✅ PRODUCTION CORS SETTINGS - UPDATED
 app.use(cors({
     origin: [
-        'https://yourwordpresssite.com',  // Aapki WordPress site URL yahan daalna
-        'http://yourwordpresssite.com',
-        'https://www.yourwordpresssite.com',
-        'http://localhost:3000',
-        'http://127.0.0.1:3000'
+        "https://turbolearnai.in",        // Your WordPress site
+        "http://turbolearnai.in", 
+        "https://www.turbolearnai.in",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "*"  // Allow all temporarily
     ],
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
-    allowedHeaders: ['Content-Type', 'Authorization']
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With']
 }));
+
+// ✅ Handle preflight OPTIONS requests
+app.options('*', cors());
 
 // Middleware
 app.use(express.json({ limit: '50mb' }));
@@ -64,22 +68,17 @@ app.get('/health', (req, res) => {
 });
 
 // 404 handler
-app.use('*', (req, res) => {
-    res.status(404).json({
-        success: false,
-        error: 'Endpoint not found',
-        message: 'The requested endpoint does not exist',
-        availableEndpoints: [
-            'GET /',
-            'GET /health',
-            'POST /api/summary',
-            'POST /api/flashcards',
-            'POST /api/quiz',
-            'POST /api/upload',
-            'POST /api/youtube',
-            'POST /api/transcribe'
-        ]
-    });
+// Add CORS headers to all responses
+app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept, Origin, X-Requested-With');
+    
+    if (req.method === 'OPTIONS') {
+        return res.sendStatus(200);
+    }
+    next();
+});
 });
 
 // Error handler
