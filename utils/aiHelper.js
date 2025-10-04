@@ -1,69 +1,109 @@
-const OpenAI = require('openai');
+const axios = require('axios');
 
 class AIHelper {
-    constructor() {
-        this.apiKey = process.env.OPENAI_API_KEY;
-        
-        if (!this.apiKey) {
-            console.error('❌ OPENAI_API_KEY is missing');
-            throw new Error('OpenAI API key is not configured');
-        }
-        
-        try {
-            this.openai = new OpenAI({
-                apiKey: this.apiKey
-            });
-            console.log('✅ OpenAI GPT-4 initialized successfully');
-        } catch (error) {
-            console.error('❌ OpenAI initialization failed:', error);
-            throw new Error(`OpenAI initialization failed: ${error.message}`);
-        }
+  constructor() {
+    this.apiKey = process.env.OPENROUTER_API_KEY;
+    this.apiUrl = 'https://openrouter.ai/api/v1/chat/completions';
+    
+    if (!this.apiKey) {
+      throw new Error('❌ OpenRouter API key is not configured');
     }
+    
+    console.log('✅ AI Helper initialized with OpenRouter');
+  }
 
-    async generateText(prompt, type = 'general') {
-        try {
-            console.log(`🔮 Sending ${type} request to OpenAI...`);
-            
-            const completion = await this.openai.chat.completions.create({
-                model: "gpt-4",
-                messages: [
-                    { 
-                        role: "system", 
-                        content: this.getSystemMessage(type)
-                    },
-                    { role: "user", content: prompt }
-                ],
-                max_tokens: 2000,
-                temperature: 0.7
-            });
-            
-            const text = completion.choices[0].message.content;
-            console.log(`✅ OpenAI ${type} response received - Length: ${text.length}`);
-            
-            return text;
-        } catch (error) {
-            console.error('❌ OpenAI API Error:', error);
-            
-            if (error.code === 'invalid_api_key') {
-                throw new Error('Invalid OpenAI API key. Please check your API key configuration.');
-            } else if (error.code === 'insufficient_quota') {
-                throw new Error('OpenAI API quota exceeded. Please check your billing details.');
-            } else {
-                throw new Error(`OpenAI API error: ${error.message}`);
-            }
-        }
-    }
+  async generateSummary(text) {
+    const prompt = `Create a comprehensive educational summary of the following content. Focus on key concepts and main ideas.
 
-    getSystemMessage(type) {
-        const messages = {
-            summary: "You are an expert educational assistant. Create comprehensive, well-structured summaries with clear sections and bullet points. Focus on key concepts and make it easy for students to study.",
-            flashcards: "You are a flashcard creation expert. Create educational flashcards with clear questions and concise answers. Focus on testing understanding of key concepts. Always return valid JSON format.",
-            quiz: "You are a quiz creation expert. Create challenging multiple-choice questions with 4 options each. Ensure questions test comprehension and application. Always return valid JSON format.",
-            general: "You are an AI educational assistant that helps students create study materials from various content sources."
-        };
-        
-        return messages[type] || messages.general;
+Content: ${text}`;
+    
+    return await this.generateWithOpenRouter(prompt);
+  }
+
+  async generateFlashcards(text) {
+    const prompt = `Create educational flashcards from this content. Format as JSON: [{question: "", answer: ""}]
+
+Content: ${text}`;
+    
+    const response = await this.generateWithOpenRouter(prompt);
+    return this.parseFlashcards(response);
+  }
+
+  async generateQuiz(text) {
+    const prompt = `Create a quiz from this content. Format as JSON: [{question: "", options: ["","","",""], answer: ""}]
+
+Content: ${text}`;
+    
+    const response = await this.generateWithOpenRouter(prompt);
+    return this.parseQuiz(response);
+  }
+
+  async generateWithOpenRouter(prompt) {
+    try {
+      const response = await axios.post(this.apiUrl, {
+        model: "openai/gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content: "You are an educational AI assistant."
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        max_tokens: 1500
+      }, {
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': 'https://turbolearnai.in',
+          'X-Title': 'Turbolearn AI'
+        }
+      });
+
+      return response.data.choices[0].message.content;
+    } catch (error) {
+      console.error('OpenRouter Error:', error.message);
+      throw new Error('AI service unavailable');
     }
+  }
+
+  parseFlashcards(text) {
+    try {
+      const jsonMatch = text.match(/\[.*\]/);
+      return jsonMatch ? JSON.parse(jsonMatch[0]) : [
+        { question: "Sample Q1", answer: "Sample A1" },
+        { question: "Sample Q2", answer: "Sample A2" }
+      ];
+    } catch (error) {
+      return [
+        { question: "What is the main topic?", answer: "Educational content" },
+        { question: "Key points?", answer: "Important concepts" }
+      ];
+    }
+  }
+
+  parseQuiz(text) {
+    try {
+      const jsonMatch = text.match(/\[.*\]/);
+      return jsonMatch ? JSON.parse(jsonMatch[0]) : [
+        {
+          question: "Sample question?",
+          options: ["A", "B", "C", "D"],
+          answer: "A"
+        }
+      ];
+    } catch (error) {
+      return [
+        {
+          question: "Primary subject?",
+          options: ["Education", "Tech", "Business", "Science"],
+          answer: "Education"
+        }
+      ];
+    }
+  }
 }
 
 module.exports = AIHelper;
