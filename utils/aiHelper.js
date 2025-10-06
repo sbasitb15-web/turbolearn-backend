@@ -1,109 +1,109 @@
-const axios = require('axios');
+const express = require('express');
+const AIHelper = require('../utils/aiHelper');
 
-class AIHelper {
-  constructor() {
-    this.apiKey = process.env.OPENROUTER_API_KEY;
-    this.apiUrl = 'https://openrouter.ai/api/v1/chat/completions';
-    
-    if (!this.apiKey) {
-      throw new Error('❌ OpenRouter API key is not configured');
-    }
-    
-    console.log('✅ AI Helper initialized with OpenRouter');
-  }
+const router = express.Router();
+const ai = new AIHelper();
 
-  async generateSummary(text) {
-    const prompt = `Create a comprehensive educational summary of the following content. Focus on key concepts and main ideas.
-
-Content: ${text}`;
-    
-    return await this.generateWithOpenRouter(prompt);
-  }
-
-  async generateFlashcards(text) {
-    const prompt = `Create educational flashcards from this content. Format as JSON: [{question: "", answer: ""}]
-
-Content: ${text}`;
-    
-    const response = await this.generateWithOpenRouter(prompt);
-    return this.parseFlashcards(response);
-  }
-
-  async generateQuiz(text) {
-    const prompt = `Create a quiz from this content. Format as JSON: [{question: "", options: ["","","",""], answer: ""}]
-
-Content: ${text}`;
-    
-    const response = await this.generateWithOpenRouter(prompt);
-    return this.parseQuiz(response);
-  }
-
-  async generateWithOpenRouter(prompt) {
+// Generate summary
+router.post('/summary', async (req, res) => {
     try {
-      const response = await axios.post(this.apiUrl, {
-        model: "openai/gpt-4o-mini",
-        messages: [
-          {
-            role: "system",
-            content: "You are an educational AI assistant."
-          },
-          {
-            role: "user",
-            content: prompt
-          }
-        ],
-        max_tokens: 1500
-      }, {
-        headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
-          'Content-Type': 'application/json',
-          'HTTP-Referer': 'https://turbolearnai.in',
-          'X-Title': 'Turbolearn AI'
+        const { text } = req.body;
+
+        if (!text) {
+            return res.status(400).json({
+                success: false,
+                error: 'Text content is required'
+            });
         }
-      });
 
-      return response.data.choices[0].message.content;
+        console.log('📝 Generating summary for text length:', text.length);
+        
+        const summary = await ai.generateSummary(text);
+        
+        res.json({
+            success: true,
+            summary: summary,
+            aiService: 'OpenRouter BYOK',
+            timestamp: new Date().toISOString()
+        });
+
     } catch (error) {
-      console.error('OpenRouter Error:', error.message);
-      throw new Error('AI service unavailable');
+        console.error('❌ Summary generation error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to generate summary',
+            message: error.message,
+            timestamp: new Date().toISOString()
+        });
     }
-  }
+});
 
-  parseFlashcards(text) {
+// Generate flashcards
+router.post('/flashcards', async (req, res) => {
     try {
-      const jsonMatch = text.match(/\[.*\]/);
-      return jsonMatch ? JSON.parse(jsonMatch[0]) : [
-        { question: "Sample Q1", answer: "Sample A1" },
-        { question: "Sample Q2", answer: "Sample A2" }
-      ];
-    } catch (error) {
-      return [
-        { question: "What is the main topic?", answer: "Educational content" },
-        { question: "Key points?", answer: "Important concepts" }
-      ];
-    }
-  }
+        const { text } = req.body;
 
-  parseQuiz(text) {
+        if (!text) {
+            return res.status(400).json({
+                success: false,
+                error: 'Text content is required'
+            });
+        }
+
+        console.log('🎴 Generating flashcards for text length:', text.length);
+        
+        const flashcards = await ai.generateFlashcards(text);
+        
+        res.json({
+            success: true,
+            flashcards: flashcards,
+            aiService: 'OpenRouter BYOK', 
+            timestamp: new Date().toISOString()
+        });
+
+    } catch (error) {
+        console.error('❌ Flashcards generation error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to generate flashcards',
+            message: error.message,
+            timestamp: new Date().toISOString()
+        });
+    }
+});
+
+// Generate quiz
+router.post('/quiz', async (req, res) => {
     try {
-      const jsonMatch = text.match(/\[.*\]/);
-      return jsonMatch ? JSON.parse(jsonMatch[0]) : [
-        {
-          question: "Sample question?",
-          options: ["A", "B", "C", "D"],
-          answer: "A"
-        }
-      ];
-    } catch (error) {
-      return [
-        {
-          question: "Primary subject?",
-          options: ["Education", "Tech", "Business", "Science"],
-          answer: "Education"
-        }
-      ];
-    }
-  }
-}
+        const { text } = req.body;
 
-module.exports = AIHelper;
+        if (!text) {
+            return res.status(400).json({
+                success: false,
+                error: 'Text content is required'
+            });
+        }
+
+        console.log('❓ Generating quiz for text length:', text.length);
+        
+        const quiz = await ai.generateQuiz(text);
+        
+        res.json({
+            success: true,
+            quiz: quiz,
+            aiService: 'OpenRouter BYOK',
+            timestamp: new Date().toISOString()
+        });
+
+    } catch (error) {
+        console.error('❌ Quiz generation error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to generate quiz',
+            message: error.message,
+            timestamp: new Date().toISOString()
+        });
+    }
+});
+
+module.exports = router;
