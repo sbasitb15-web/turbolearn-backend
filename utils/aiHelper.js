@@ -1,4 +1,4 @@
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const OpenAI = require('openai');
 
 class AIHelper {
     constructor() {
@@ -6,7 +6,11 @@ class AIHelper {
         if (!this.apiKey) {
             console.warn('⚠️ OPENROUTER_API_KEY not found');
         }
-        this.genAI = new GoogleGenerativeAI(this.apiKey);
+        
+        this.openai = new OpenAI({
+            apiKey: this.apiKey,
+            baseURL: "https://openrouter.ai/api/v1"
+        });
     }
 
     async generateText(prompt, type = 'summary') {
@@ -15,13 +19,15 @@ class AIHelper {
                 throw new Error('OpenRouter API key not configured');
             }
 
-            const model = this.genAI.getGenerativeModel({ 
-                model: "gemini-2.0-flash-exp" 
+            const completion = await this.openai.chat.completions.create({
+                model: "google/gemini-2.0-flash-exp:free",
+                messages: [
+                    { role: "user", content: prompt }
+                ],
+                max_tokens: 1000
             });
 
-            const result = await model.generateContent(prompt);
-            const response = await result.response;
-            return response.text();
+            return completion.choices[0].message.content;
 
         } catch (error) {
             console.error('❌ AI Helper Error:', error);
