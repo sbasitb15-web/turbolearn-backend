@@ -1,107 +1,96 @@
 const express = require('express');
-const AIHelper = require('../utils/aiHelper');
-
 const router = express.Router();
-const ai = new AIHelper();
+const aiHelper = require('../utils/aiHelper');
 
-// Generate summary
+// Summary route
 router.post('/summary', async (req, res) => {
     try {
         const { text } = req.body;
-
-        if (!text) {
+        
+        if (!text || text.trim().length === 0) {
             return res.status(400).json({
                 success: false,
-                error: 'Text content is required'
+                error: 'Text is required'
             });
         }
 
         console.log('📝 Generating summary for text length:', text.length);
-        
-        const summary = await ai.generateSummary(text);
+        const summary = await aiHelper.generateSummary(text);
         
         res.json({
             success: true,
             summary: summary,
-            aiService: 'OpenRouter BYOK',
-            timestamp: new Date().toISOString()
+            type: 'summary'
         });
 
     } catch (error) {
-        console.error('❌ Summary generation error:', error);
+        console.error('❌ Summary Error:', error);
         res.status(500).json({
             success: false,
             error: 'Failed to generate summary',
-            message: error.message,
-            timestamp: new Date().toISOString()
+            message: error.message
         });
     }
 });
 
-// Generate flashcards
+// Flashcards route
 router.post('/flashcards', async (req, res) => {
     try {
         const { text } = req.body;
-
-        if (!text) {
+        
+        if (!text || text.trim().length === 0) {
             return res.status(400).json({
                 success: false,
-                error: 'Text content is required'
+                error: 'Text is required'
             });
         }
 
-        console.log('🎴 Generating flashcards for text length:', text.length);
-        
-        const flashcards = await ai.generateFlashcards(text);
+        console.log('📚 Generating flashcards for text length:', text.length);
+        const flashcards = await aiHelper.generateFlashcards(text);
         
         res.json({
             success: true,
             flashcards: flashcards,
-            aiService: 'OpenRouter BYOK', 
-            timestamp: new Date().toISOString()
+            type: 'flashcards'
         });
 
     } catch (error) {
-        console.error('❌ Flashcards generation error:', error);
+        console.error('❌ Flashcards Error:', error);
         res.status(500).json({
             success: false,
             error: 'Failed to generate flashcards',
-            message: error.message,
-            timestamp: new Date().toISOString()
+            message: error.message
         });
     }
 });
 
-// Generate quiz
+// Quiz route
 router.post('/quiz', async (req, res) => {
     try {
         const { text } = req.body;
-
-        if (!text) {
+        
+        if (!text || text.trim().length === 0) {
             return res.status(400).json({
                 success: false,
-                error: 'Text content is required'
+                error: 'Text is required'
             });
         }
 
         console.log('❓ Generating quiz for text length:', text.length);
-        
-        const quiz = await ai.generateQuiz(text);
+        const quiz = await aiHelper.generateQuiz(text);
         
         res.json({
             success: true,
             quiz: quiz,
-            aiService: 'OpenRouter BYOK',
-            timestamp: new Date().toISOString()
+            type: 'quiz'
         });
 
     } catch (error) {
-        console.error('❌ Quiz generation error:', error);
+        console.error('❌ Quiz Error:', error);
         res.status(500).json({
             success: false,
             error: 'Failed to generate quiz',
-            message: error.message,
-            timestamp: new Date().toISOString()
+            message: error.message
         });
     }
 });
