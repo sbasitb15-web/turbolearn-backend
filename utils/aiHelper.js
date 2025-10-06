@@ -1,109 +1,48 @@
-const express = require('express');
-const AIHelper = require('../utils/aiHelper');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
-const router = express.Router();
-const ai = new AIHelper();
-
-// Generate summary
-router.post('/summary', async (req, res) => {
-    try {
-        const { text } = req.body;
-
-        if (!text) {
-            return res.status(400).json({
-                success: false,
-                error: 'Text content is required'
-            });
+class AIHelper {
+    constructor() {
+        this.apiKey = process.env.OPENROUTER_API_KEY;
+        if (!this.apiKey) {
+            console.warn('⚠️ OPENROUTER_API_KEY not found');
         }
-
-        console.log('📝 Generating summary for text length:', text.length);
-        
-        const summary = await ai.generateSummary(text);
-        
-        res.json({
-            success: true,
-            summary: summary,
-            aiService: 'OpenRouter BYOK',
-            timestamp: new Date().toISOString()
-        });
-
-    } catch (error) {
-        console.error('❌ Summary generation error:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Failed to generate summary',
-            message: error.message,
-            timestamp: new Date().toISOString()
-        });
+        this.genAI = new GoogleGenerativeAI(this.apiKey);
     }
-});
 
-// Generate flashcards
-router.post('/flashcards', async (req, res) => {
-    try {
-        const { text } = req.body;
+    async generateText(prompt, type = 'summary') {
+        try {
+            if (!this.apiKey) {
+                throw new Error('OpenRouter API key not configured');
+            }
 
-        if (!text) {
-            return res.status(400).json({
-                success: false,
-                error: 'Text content is required'
+            const model = this.genAI.getGenerativeModel({ 
+                model: "gemini-2.0-flash-exp" 
             });
+
+            const result = await model.generateContent(prompt);
+            const response = await result.response;
+            return response.text();
+
+        } catch (error) {
+            console.error('❌ AI Helper Error:', error);
+            throw new Error(`AI service error: ${error.message}`);
         }
-
-        console.log('🎴 Generating flashcards for text length:', text.length);
-        
-        const flashcards = await ai.generateFlashcards(text);
-        
-        res.json({
-            success: true,
-            flashcards: flashcards,
-            aiService: 'OpenRouter BYOK', 
-            timestamp: new Date().toISOString()
-        });
-
-    } catch (error) {
-        console.error('❌ Flashcards generation error:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Failed to generate flashcards',
-            message: error.message,
-            timestamp: new Date().toISOString()
-        });
     }
-});
 
-// Generate quiz
-router.post('/quiz', async (req, res) => {
-    try {
-        const { text } = req.body;
-
-        if (!text) {
-            return res.status(400).json({
-                success: false,
-                error: 'Text content is required'
-            });
-        }
-
-        console.log('❓ Generating quiz for text length:', text.length);
-        
-        const quiz = await ai.generateQuiz(text);
-        
-        res.json({
-            success: true,
-            quiz: quiz,
-            aiService: 'OpenRouter BYOK',
-            timestamp: new Date().toISOString()
-        });
-
-    } catch (error) {
-        console.error('❌ Quiz generation error:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Failed to generate quiz',
-            message: error.message,
-            timestamp: new Date().toISOString()
-        });
+    async generateSummary(text) {
+        const prompt = `Create a comprehensive and well-structured summary of the following text. Make it educational and easy to understand:\n\n${text}`;
+        return await this.generateText(prompt, 'summary');
     }
-});
 
-module.exports = router;
+    async generateFlashcards(text) {
+        const prompt = `Create educational flashcards from the following text. Format each flashcard as "Question | Answer". Create 5-10 flashcards:\n\n${text}`;
+        return await this.generateText(prompt, 'flashcards');
+    }
+
+    async generateQuiz(text) {
+        const prompt = `Create a quiz with multiple choice questions from the following text. Format each question as "Question? A) Option1 B) Option2 C) Option3 D) Option4 | CorrectAnswer". Create 5 questions:\n\n${text}`;
+        return await this.generateText(prompt, 'quiz');
+    }
+}
+
+module.exports = new AIHelper();
