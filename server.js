@@ -48,14 +48,38 @@ const fileRoutes = require('./routes/fileRoutes');
 app.use('/api', aiRoutes);
 app.use('/api', fileRoutes);
 
+// ✅ DEBUG ROUTE - Check API Keys
+app.get('/api/debug', (req, res) => {
+    const debugInfo = {
+        groq_key_set: !!process.env.GROQ_API_KEY,
+        groq_key_prefix: process.env.GROQ_API_KEY ? process.env.GROQ_API_KEY.substring(0, 10) + '...' : 'Not set',
+        deepseek_key_set: !!process.env.DEEPSEEK_API_KEY,
+        openrouter_key_set: !!process.env.OPENROUTER_API_KEY,
+        current_service: process.env.GROQ_API_KEY ? "Groq" : 
+                        process.env.DEEPSEEK_API_KEY ? "DeepSeek" : 
+                        process.env.OPENROUTER_API_KEY ? "OpenRouter" : "None",
+        environment: process.env.NODE_ENV || 'development',
+        all_env_keys: Object.keys(process.env).filter(key => key.includes('API') || key.includes('KEY'))
+    };
+    
+    console.log('🔍 DEBUG API Key Status:', debugInfo);
+    res.json(debugInfo);
+});
+
 // Basic routes
 app.get('/', (req, res) => {
+    const aiService = process.env.GROQ_API_KEY ? "Groq API" : 
+                     process.env.DEEPSEEK_API_KEY ? "DeepSeek API" :
+                     process.env.OPENROUTER_API_KEY ? "OpenRouter BYOK" : 
+                     "No AI Service";
+    
     res.json({ 
         success: true,
         message: '🚀 Turbolearn AI Backend is running!',
-        service: 'OpenRouter BYOK',
+        service: aiService,
         endpoints: {
             health: '/health',
+            debug: '/api/debug',
             summary: 'POST /api/summary',
             flashcards: 'POST /api/flashcards',
             quiz: 'POST /api/quiz',
@@ -69,12 +93,17 @@ app.get('/', (req, res) => {
 });
 
 app.get('/health', (req, res) => {
+    const aiService = process.env.GROQ_API_KEY ? "Groq API" : 
+                     process.env.DEEPSEEK_API_KEY ? "DeepSeek API" :
+                     process.env.OPENROUTER_API_KEY ? "OpenRouter BYOK" : 
+                     "No AI Service";
+    
     res.json({ 
         success: true,
         status: 'Healthy ✅',
         server: 'Running',
         port: PORT,
-        service: 'OpenRouter BYOK',
+        service: aiService,
         timestamp: new Date().toISOString()
     });
 });
@@ -88,6 +117,7 @@ app.use('*', (req, res) => {
         availableEndpoints: [
             'GET /',
             'GET /health',
+            'GET /api/debug',
             'POST /api/summary',
             'POST /api/flashcards',
             'POST /api/quiz',
@@ -109,11 +139,24 @@ app.use((error, req, res, next) => {
     });
 });
 
+// ✅ ENVIRONMENT CHECK BEFORE START
+console.log('🔑 Environment Variables Check:');
+console.log('GROQ_API_KEY exists:', !!process.env.GROQ_API_KEY);
+console.log('GROQ_API_KEY value:', process.env.GROQ_API_KEY ? process.env.GROQ_API_KEY.substring(0, 10) + '...' : 'Not set');
+console.log('DEEPSEEK_API_KEY exists:', !!process.env.DEEPSEEK_API_KEY);
+console.log('OPENROUTER_API_KEY exists:', !!process.env.OPENROUTER_API_KEY);
+
+const detectedService = process.env.GROQ_API_KEY ? "Groq API" : 
+                       process.env.DEEPSEEK_API_KEY ? "DeepSeek API" :
+                       process.env.OPENROUTER_API_KEY ? "OpenRouter BYOK" : 
+                       "No AI Service";
+
 // Start server
 app.listen(PORT, () => {
     console.log(`🎯 Turbolearn AI Backend running on port ${PORT}`);
     console.log(`✅ Health check: /health`);
-    console.log(`🤖 AI Service: OpenRouter BYOK`);
+    console.log(`🤖 AI Service: ${detectedService}`);
     console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
     console.log(`🔧 CORS Enabled for: turbolearnai.in`);
+    console.log(`🐛 Debug endpoint: /api/debug`);
 });
