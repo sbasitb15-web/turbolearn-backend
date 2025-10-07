@@ -2,18 +2,22 @@ const OpenAI = require('openai');
 
 class AIHelper {
     constructor() {
-        this.apiKey = process.env.DEEPSEEK_API_KEY || process.env.OPENROUTER_API_KEY;
+        this.apiKey = process.env.GROQ_API_KEY || process.env.DEEPSEEK_API_KEY;
+        
         if (!this.apiKey) {
-            console.warn('⚠️ DEEPSEEK_API_KEY not found');
+            console.warn('⚠️ No API key found - Please set GROQ_API_KEY or DEEPSEEK_API_KEY');
         }
         
-        this.openai = new OpenAI({
+        // Groq setup - SUPER FAST & FREE
+        this.client = new OpenAI({
             apiKey: this.apiKey,
-            baseURL: "https://api.deepseek.com/v1" // DeepSeek API endpoint
+            baseURL: "https://api.groq.com/openai/v1"
         });
         
+        this.modelName = "llama-3.1-8b-instant"; // Groq free & fast model
+        
         this.lastRequestTime = 0;
-        this.minRequestInterval = 3000; // 3 seconds between requests
+        this.minRequestInterval = 1000; // 1 second - Groq is very fast
     }
 
     async delay(ms) {
@@ -30,18 +34,18 @@ class AIHelper {
             }
 
             if (!this.apiKey) {
-                throw new Error('DeepSeek API key not configured');
+                throw new Error('Groq API key not configured');
             }
 
-            const completion = await this.openai.chat.completions.create({
-                model: "deepseek-chat", // DeepSeek free model
+            const completion = await this.client.chat.completions.create({
+                model: this.modelName,
                 messages: [
                     { 
                         role: "user", 
                         content: prompt 
                     }
                 ],
-                max_tokens: 1000,
+                max_tokens: 1024,
                 temperature: 0.7
             });
 
@@ -49,11 +53,14 @@ class AIHelper {
             return completion.choices[0].message.content;
 
         } catch (error) {
-            console.error('❌ DeepSeek AI Error:', error);
+            console.error('❌ Groq AI Error:', error);
             
-            // Handle rate limit specifically
             if (error.status === 429) {
                 throw new Error('Rate limit exceeded. Please wait 10 seconds and try again.');
+            }
+            
+            if (error.status === 401) {
+                throw new Error('Invalid API key. Please check Groq configuration.');
             }
             
             throw new Error(`AI service error: ${error.message}`);
