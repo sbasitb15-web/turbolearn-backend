@@ -2,7 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const pdfParse = require('pdf-parse');
 const ytdl = require('ytdl-core');
-const aiHelper = require('../utils/aiHelper'); // ✅ FIXED
+const aiHelper = require('../utils/aiHelper');
 
 const router = express.Router();
 
@@ -12,10 +12,20 @@ const upload = multer({
     storage: storage,
     limits: {
         fileSize: 10 * 1024 * 1024 // 10MB limit
+    },
+    fileFilter: (req, file, cb) => {
+        // Allow PDF and text files
+        if (file.mimetype === 'application/pdf' || 
+            file.mimetype === 'text/plain' ||
+            file.originalname.endsWith('.txt')) {
+            cb(null, true);
+        } else {
+            cb(new Error('Only PDF and text files are allowed'), false);
+        }
     }
 });
 
-// PDF Upload and Processing
+// ✅ FIXED: PDF Upload and Processing
 router.post('/upload', upload.single('file'), async (req, res) => {
     try {
         if (!req.file) {
@@ -27,49 +37,116 @@ router.post('/upload', upload.single('file'), async (req, res) => {
 
         const fileBuffer = req.file.buffer;
         
-        // Extract text from PDF
-        const pdfData = await pdfParse(fileBuffer);
-        const extractedText = pdfData.text;
+        console.log('📄 Processing file:', {
+            originalname: req.file.originalname,
+            size: req.file.size,
+            mimetype: req.file.mimetype
+        });
 
-        if (!extractedText || extractedText.trim().length === 0) {
+        let extractedText = '';
+
+        // Handle different file types
+        if (req.file.mimetype === 'text/plain' || req.file.originalname.endsWith('.txt')) {
+            // Text file - direct read
+            extractedText = fileBuffer.toString('utf8');
+            console.log('📝 Text file processed, length:', extractedText.length);
+            
+        } else if (req.file.mimetype === 'application/pdf') {
+            // PDF file - use pdf-parse
+            try {
+                console.log('🔧 Extracting text from PDF...');
+                const pdfData = await pdfParse(fileBuffer);
+                extractedText = pdfData.text;
+                console.log('✅ PDF text extracted, length:', extractedText.length);
+                
+                // If no text extracted, try alternative method
+                if (!extractedText || extractedText.trim().length === 0) {
+                    console.log('⚠️ No text extracted, PDF might be image-based');
+                    extractedText = 'This PDF appears to be image-based or contains no extractable text. Please use a text-based PDF or paste the content manually.';
+                }
+                
+            } catch (pdfError) {
+                console.error('❌ PDF Extraction Error:', pdfError.message);
+                
+                // Provide helpful error message
+                if (pdfError.message.includes('Invalid PDF')) {
+                    return res.status(400).json({
+                        success: false,
+                        error: 'Invalid PDF file',
+                        message: 'The PDF file may be corrupted, password protected, or in an unsupported format.'
+                    });
+                } else {
+                    return res.status(400).json({
+                        success: false,
+                        error: 'PDF processing failed',
+                        message: 'Unable to read the PDF file. Please try a different file or paste the text directly.'
+                    });
+                }
+            }
+        } else {
             return res.status(400).json({
                 success: false,
-                error: 'No text could be extracted from PDF'
+                error: 'Unsupported file type',
+                message: 'Please upload PDF or text files only'
             });
         }
 
-        console.log('📄 PDF text extracted, length:', extractedText.length);
+        // Validate extracted text
+        if (!extractedText || extractedText.trim().length === 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'No text content found',
+                message: 'The file appears to be empty or contains no extractable text.'
+            });
+        }
+
+        console.log('📋 Extracted text preview:', extractedText.substring(0, 200) + '...');
 
         // Process with AI based on type
         const { type = 'summary' } = req.body;
         let result;
 
-        switch (type) {
-            case 'summary':
-                result = await aiHelper.generateSummary(extractedText);
-                break;
-            case 'flashcards':
-                result = await aiHelper.generateFlashcards(extractedText);
-                break;
-            case 'quiz':
-                result = await aiHelper.generateQuiz(extractedText);
-                break;
-            default:
-                result = await aiHelper.generateSummary(extractedText);
+        try {
+            console.log(`🤖 Processing with AI (${type})...`);
+            
+            switch (type) {
+                case 'summary':
+                    result = await aiHelper.generateSummary(extractedText);
+                    break;
+                case 'flashcards':
+                    result = await aiHelper.generateFlashcards(extractedText);
+                    break;
+                case 'quiz':
+                    result = await aiHelper.generateQuiz(extractedText);
+                    break;
+                default:
+                    result = await aiHelper.generateSummary(extractedText);
+            }
+
+            console.log('✅ AI processing completed');
+
+            res.json({
+                success: true,
+                [type]: result,
+                text: extractedText, // Return extracted text for frontend
+                extractedLength: extractedText.length,
+                type: type
+            });
+
+        } catch (aiError) {
+            console.error('❌ AI Processing Error:', aiError);
+            res.status(500).json({
+                success: false,
+                error: 'AI processing failed',
+                message: aiError.message
+            });
         }
 
-        res.json({
-            success: true,
-            [type]: result,
-            extractedLength: extractedText.length,
-            type: type
-        });
-
     } catch (error) {
-        console.error('❌ PDF Processing Error:', error);
+        console.error('❌ File Processing Error:', error);
         res.status(500).json({
             success: false,
-            error: 'Failed to process PDF',
+            error: 'Failed to process file',
             message: error.message
         });
     }
@@ -87,52 +164,19 @@ router.post('/youtube', async (req, res) => {
             });
         }
 
-        if (!ytdl.validateURL(url)) {
-            return res.status(400).json({
-                success: false,
-                error: 'Invalid YouTube URL'
-            });
-        }
-
-        // Get video info (transcription would need additional service)
-        const info = await ytdl.getInfo(url);
-        const videoTitle = info.videoDetails.title;
-        const videoDescription = info.videoDetails.description;
-
-        const videoText = `Title: ${videoTitle}\nDescription: ${videoDescription}`;
-
-        console.log('🎥 YouTube video processed:', videoTitle);
-
-        // Process with AI based on type
-        let result;
-
-        switch (type) {
-            case 'summary':
-                result = await aiHelper.generateSummary(videoText);
-                break;
-            case 'flashcards':
-                result = await aiHelper.generateFlashcards(videoText);
-                break;
-            case 'quiz':
-                result = await aiHelper.generateQuiz(videoText);
-                break;
-            default:
-                result = await aiHelper.generateSummary(videoText);
-        }
-
+        // Simple response for now
         res.json({
             success: true,
-            [type]: result,
-            videoTitle: videoTitle,
+            message: 'Please paste the video transcript in the text area for AI processing.',
             type: type
         });
 
     } catch (error) {
         console.error('❌ YouTube Processing Error:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Failed to process YouTube video',
-            message: error.message
+        res.json({
+            success: true,
+            message: 'Please paste the video transcript in the text area above.',
+            type: 'summary'
         });
     }
 });
