@@ -219,4 +219,8 @@ router.get('/health', (req, res) => {
     });
 });
 
+<<<<<<< HEAD
 module.exports = router;
+=======
+module.exports = router;
+>>>>>>> b84d94f12fe015722344d40b28bcd8262903fed0
