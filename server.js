@@ -14,23 +14,21 @@ app.use(cors());
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
-// ✅ Existing Routes (example)
+// ✅ Existing Routes
 const summaryRoutes = require("./routes/summaryRoutes");
 const flashcardRoutes = require("./routes/flashcardRoutes");
 const quizRoutes = require("./routes/quizRoutes");
 
-// ✅ 👉 NEW: Import extract routes (PDF & YouTube)
+// ✅ NEW: Import extract routes (PDF & YouTube)
 const extractRoutes = require("./routes/extractRoutes");
 
-// ✅ Use existing routes
+// ✅ Mount routes
 app.use("/api/summary", summaryRoutes);
 app.use("/api/flashcards", flashcardRoutes);
 app.use("/api/quiz", quizRoutes);
-
-// ✅ 👉 NEW: Add extract routes here
 app.use("/api", extractRoutes);
 
-// ✅ Health check route
+// ✅ Root info
 app.get("/", (req, res) => {
   res.json({
     success: true,
@@ -42,6 +40,15 @@ app.get("/", (req, res) => {
       "/api/extract/pdf",
       "/api/extract/youtube"
     ]
+  });
+});
+
+// ✅ Health check (add this)
+app.get("/health", (req, res) => {
+  res.json({
+    status: "Healthy ✅",
+    service: "TurboLearn Backend",
+    version: "1.0.0"
   });
 });
 
